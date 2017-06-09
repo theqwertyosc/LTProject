@@ -9,17 +9,29 @@ def main(argv):
     nlp = spacy.load('en_default') #put this first so we don't load it for every question
     print_example_queries()
     
+    questionCount = 0
     for line in sys.stdin:
         line = line.rstrip() # removes newline
-        # TODO: handle new input format
+
+        splitLine = line.split("\t")
+        if len(splitLine)>=2:
+            line = splitLine[1]
+            print(splitLine[0] + "\t", end="")
+        else: #question withoutnumber
+            line = splitLine[0]
+            questionCount += 1
+            print(str(questionCount) + "\t", end="")
+
         answer = create_and_fire_query(line, nlp) #returns 1 and prints answer if one was found
         if answer == 0:
             print("No answer found")
+        else:
+            print("\n", end="")
         #end of file ends program because stdin is used
 
 def print_example_queries():
     # don't think we need this ?
-    print("enter question:")
+    #print("enter question:")
     return
 
 def test_for_yes_no(line) :
@@ -125,7 +137,7 @@ def test_for_count(line) :
     # TODO: write this function
     # returns 1 if it is a counting question, or 0 if it isnt
     # maybe just check for keywords, like "count" or "how many"?
-    print(line[0].lemma_ + " " + line[1].lemma_)
+    #print(line[0].lemma_ + " " + line[1].lemma_)
     if (line[0].lemma_ == 'how' and line[1].lemma_ == 'many') or line[0].lemma_== 'count':
         return 1
     return 0
@@ -147,6 +159,7 @@ def analysis(line):
     entList.extend(free_nouns(line, relList))
 
     relList.extend(free_verbs(line))
+    relList.extend(free_nouns(line, relList))
 
     Pair =collections.namedtuple('Pair',['entity','relation'])
     for ent in entList:
@@ -232,12 +245,12 @@ def create_and_fire_query(line, nlp):
     wdapi = 'https://wikidata.org/w/api.php';
     wdparams = {'action':'wbsearchentities','language':'en', 'format':'json'}
     result = nlp(line)
-    print(result)
+    #print(result)
     
     # decide which kind of question it is
     isCountQuestion = 0
     if test_for_yes_no(result):
-        print("Yes question")
+        #print("Yes question")
         analysis_yes_no(result)
         # if it's a yes/no question we go have a different query
     else :
@@ -275,20 +288,18 @@ def fire_sparql(ent, rel, isCountQuestion):
                 #prints the answer as a literal if it exists, and doesn't make exceptions for dates etc.
                 if isCountQuestion == 0:
                     # only prints the answers if it isn't a count question
-                    print('{}'.format(item[key]['value']))
-                    # TODO: format answer correctly ("1    ans1, ans2, ans3\n")
+                    print('{}'.format(item[key]['value']) + "\t", end="")
                 else:
-					possibleAnswer = item[key]['value']
+                    possibleAnswer = item[key]['value']
                 answers_found+=1 # always returns first matches (which is the right option every time I tested)
     if answers_found >= 1:
-        if isCountQuestion == 1 
-			if possibleAnswer.isdigit():
-				print(possibleAnswer)
-			else:
-				print(answers_found)
-            # TODO: format answer
+        if isCountQuestion == 1:
+            if possibleAnswer.isdigit():
+                print(possibleAnswer)
+            else:
+                print(answers_found)
+            #should automatically format properly, because it is only one number
         return 1
-        # TODO: write answer to file
     return 0
 
 if __name__ =="__main__":
