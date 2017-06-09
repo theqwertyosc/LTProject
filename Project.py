@@ -155,9 +155,8 @@ def analysis(line):
     entList.extend(extract_named_entities(line))
 
     relList.extend(extract_subj(line))
-
+    entList.extend(free_verbs(line))
     entList.extend(free_nouns(line, relList))
-
     relList.extend(free_verbs(line))
     relList.extend(free_nouns(line, relList))
 
