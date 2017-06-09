@@ -32,6 +32,7 @@ def main(argv):
 def print_example_queries():
     # don't think we need this ?
     #print("enter question:")
+    print("\n")
     return
 
 def test_for_yes_no(line) :
@@ -155,11 +156,11 @@ def analysis(line):
     entList.extend(extract_named_entities(line))
 
     relList.extend(extract_subj(line))
-    entList.extend(free_verbs(line))
     entList.extend(free_nouns(line, relList))
     relList.extend(free_verbs(line))
     relList.extend(free_nouns(line, relList))
-
+    entList.extend(free_verbs(line))
+    
     Pair =collections.namedtuple('Pair',['entity','relation'])
     for ent in entList:
         for rel in relList:
@@ -223,7 +224,7 @@ def free_nouns(result, relList):
     # returns free nouns for a last resort test
     out=[]
     for w in result:
-        if (w.tag == 474 or w.tag == 477 or w.tag_ == "attr") and relList.count(str(w.lemma_)) == 0:
+        if (w.tag == 474 or w.tag == 477 or w.tag_ == "attr"):
             # 474a nd 477 are nouns and plural nouns
             out.append(str(w.lemma_))
     out.reverse()
@@ -256,7 +257,7 @@ def create_and_fire_query(line, nlp):
         if test_for_count(result):   
             isCountQuestion = 1
         pairs = analysis(result) # perform the keyword analysis for counting and x of y questions
-
+        # print(pairs)
         # fires a query for each pair
         for pair in pairs:
             wdparams['search'] = pair.entity
