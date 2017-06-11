@@ -103,7 +103,7 @@ def answer_yes_no(ob1, rel, ob2):
         answer = 'Yes'
     elif result['boolean'] == False:
         answer = 'No'
-    print(answer)
+    print(answer, end="")
 
 
 def fire_sparql_yes_no(ob1, rel, ob2) :
@@ -144,7 +144,7 @@ def fire_sparql_yes_no(ob1, rel, ob2) :
                 for result in json['search']:
                     rel = result['id']
                     return answer_yes_no(entity1_id, rel, entity2_id)
-    print("I don\'t know the answer")
+    print("No", end="")
 
 
 def test_for_count(line) :
@@ -341,9 +341,9 @@ def fire_sparql(ent, rel, isCountQuestion):
     if answers_found >= 1:
         if isCountQuestion == 1:
             if possibleAnswer.isdigit():
-                print(possibleAnswer)
+                print(possibleAnswer, end="")
             else:
-                print(answers_found)
+                print(answers_found, end="")
             #should automatically format properly, because it is only one number
         return 1
     return 0
