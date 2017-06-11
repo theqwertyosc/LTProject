@@ -1,10 +1,10 @@
 import sys
 import requests
 import re
-import json
 import spacy
 import collections
 import csv
+import time
 
 
 def main(argv):
@@ -134,8 +134,8 @@ def fire_sparql_yes_no(ob1, rel, ob2) :
                             wdparams['search'] = ('{}'.format(item[key]['value']))
                             wdparams['type'] = 'property'
                             json = requests.get(wdapi,wdparams).json()
-                            for result in json['search']:
-                                rel = result['id']
+                            for searchResult in json['search']:
+                                rel = searchResult['id']
                                 return answer_yes_no(entity1_id, rel, entity2_id)
             else:
                 wdparams['search'] = rel
@@ -194,7 +194,8 @@ def analysis(line):
     Pair =collections.namedtuple('Pair',['entity','relation'])
     for ent in ent_sorted:
         for rel in rel_sorted:
-            pairs.append(Pair(str(ent[0]),str(rel[0])))
+            if ent != rel:
+                pairs.append(Pair(str(ent[0]),str(rel[0])))
     return pairs
 
 
@@ -287,7 +288,7 @@ def create_and_fire_query(line, nlp):
         if test_for_count(result):   
             isCountQuestion = 1
         pairs = analysis(result) # perform the keyword analysis for counting and x of y questions
-        # print(pairs)
+        #print(pairs)
         # fires a query for each pair
         for pair in pairs:
             wdparams['search'] = pair.entity
@@ -311,7 +312,16 @@ def fire_sparql(ent, rel, isCountQuestion):
     query = 'SELECT ?answerLabel WHERE { wd:'+ent+' wdt:'+rel+' ?answer. SERVICE wikibase:label {bd:serviceParam wikibase:language "en" .}}'
     #queries for the label of the answer not the id
     answers_found = 0 # count of answers found
-    data = requests.get(sparqlurl, params = {'query':query, 'format':'json'}).json()
+    data = ''
+    while data == '':
+        try:
+            data = requests.get(sparqlurl, params = {'query':query, 'format':'json'}).json()
+        except:
+            #print("Connection refused by the server..")
+            time.sleep(5)
+            #print("Was a nice sleep, now let me continue...")
+            continue
+    
     for item in data['results']['bindings']:
         for key in item:
             if item[key]['type'] == 'literal':

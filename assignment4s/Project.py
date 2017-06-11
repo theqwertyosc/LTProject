@@ -259,7 +259,7 @@ def create_and_fire_query(line, nlp):
         if test_for_count(result):   
             isCountQuestion = 1
         pairs = analysis(result) # perform the keyword analysis for counting and x of y questions
-        # print(pairs)
+        print(pairs)
         # fires a query for each pair
         for pair in pairs:
             wdparams['search'] = pair.entity
