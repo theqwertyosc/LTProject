@@ -173,8 +173,8 @@ def analysis(line):
     entList.extend(free_nouns(line, relList))
     relList.extend(free_verbs(line))
     relList.extend(free_nouns(line, relList))
-    entList.extend(free_verbs(line))
-
+    
+    # sorting some of the words by frequency to try the rarest ones first
     entDict = {}
     for item in entList:
         if item not in WordFreq:
@@ -191,10 +191,14 @@ def analysis(line):
             relDict[item] = int(WordFreq[item])
     rel_sorted = sorted(relList, key=relDict.get, reverse=True)
 
+    #this is such a last resort that we add it after sorting, because "List the x of y" gives the wrong answer
+    entList.extend(free_verbs(line))
+    
     Pair =collections.namedtuple('Pair',['entity','relation'])
     for ent in ent_sorted:
         for rel in rel_sorted:
-            if ent != rel:
+            if ent != rel and (Pair(str(ent[0]),str(rel[0])) not in pairs):
+                
                 pairs.append(Pair(str(ent[0]),str(rel[0])))
     return pairs
 
@@ -267,7 +271,7 @@ def free_verbs(result):
     out=[]
     for w in result:
         if w.pos_ == "VERB" and w.lemma_!="be":
-            out.append((str(w.lemma_),'v'))
+            out.append((str(w),'v'))
     out.reverse()
     return out
 
@@ -288,7 +292,7 @@ def create_and_fire_query(line, nlp):
         if test_for_count(result):   
             isCountQuestion = 1
         pairs = analysis(result) # perform the keyword analysis for counting and x of y questions
-        #print(pairs)
+        print(pairs)
         # fires a query for each pair
         for pair in pairs:
             wdparams['search'] = pair.entity
@@ -312,6 +316,8 @@ def fire_sparql(ent, rel, isCountQuestion):
     query = 'SELECT ?answerLabel WHERE { wd:'+ent+' wdt:'+rel+' ?answer. SERVICE wikibase:label {bd:serviceParam wikibase:language "en" .}}'
     #queries for the label of the answer not the id
     answers_found = 0 # count of answers found
+
+    # this code is changed so that if our connection is refused for too many requests we try again after a shord wait
     data = ''
     while data == '':
         try:
