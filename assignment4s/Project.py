@@ -1,15 +1,13 @@
 import sys
 import requests
 import re
-import json
+
 import spacy
 import collections
-import csv
-
 
 def main(argv):
     nlp = spacy.load('en_default') #put this first so we don't load it for every question
-    #print_example_queries()
+    print_example_queries()
     
     questionCount = 0
     for line in sys.stdin:
@@ -31,21 +29,11 @@ def main(argv):
             print("\n", end="")
         #end of file ends program because stdin is used
 
-# def print_example_queries():
-#     # don't think we need this ?
-#     #print("enter question:")
-#     print("\n")
-#     return
-
-def read_csv():
-    wordfreqs = {}
-    with open('WordFreq.csv', 'rt') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        for csvline in csvreader:
-            wordfreqs[(csvline[1],csvline[2])] = csvline[0]
-    return wordfreqs
-
-
+def print_example_queries():
+    # don't think we need this ?
+    #print("enter question:")
+    #print("\n")
+    return
 
 
 def test_for_yes_no(line) :
@@ -55,6 +43,7 @@ def test_for_yes_no(line) :
     if line[0].lemma_ == 'do' or line[0].lemma_ == 'be':
         return 1
     return 0
+
 
 
 def analysis_yes_no(line) :
@@ -159,13 +148,12 @@ def test_for_count(line) :
     
 def analysis(line):
     # takes the tokenised line, returns list of variables to query
-    WordFreq = read_csv()
     entList = []
     relList = []
     pairs = []
     # Strategy is to have two lists, one of entities and
     # one of relations, compiled so that most reliable options are
-    # earlier in the list. Then cycle through the
+    # earlier in the list. Then cycle throught the
     # combinations until there is an answer.
     entList.extend(extract_named_entities(line))
 
@@ -174,27 +162,11 @@ def analysis(line):
     relList.extend(free_verbs(line))
     relList.extend(free_nouns(line, relList))
     entList.extend(free_verbs(line))
-
-    entDict = {}
-    for item in entList:
-        if item not in WordFreq:
-            entDict[item] = len(WordFreq)+1
-        else:
-            entDict[item] = int(WordFreq[item])
-    ent_sorted = sorted(entList, key=entDict.get, reverse=True)
-
-    relDict = {}
-    for item in relList:
-        if item not in WordFreq:
-            relDict[item] = len(WordFreq)+1
-        else:
-            relDict[item] = int(WordFreq[item])
-    rel_sorted = sorted(relList, key=relDict.get, reverse=True)
-
+    
     Pair =collections.namedtuple('Pair',['entity','relation'])
-    for ent in ent_sorted:
-        for rel in rel_sorted:
-            pairs.append(Pair(str(ent[0]),str(rel[0])))
+    for ent in entList:
+        for rel in relList:
+            pairs.append(Pair(str(ent),str(rel)))
     return pairs
 
 
@@ -210,16 +182,16 @@ def extract_named_entities(result):
                 ent+= " "
             else:
                 if started == 1:
-                    out.append((ent,'n'))
+                    out.append(ent)
                     ent = ""
                 started = 1
             ent += str(w) #w.lemma_ also a poss
         elif started == 1:
             started = 0
-            out.append((ent,'n'))
+            out.append(ent)
             ent = ""
     if started ==1:
-        out.append((ent,'n'))        
+        out.append(ent)        
     return out
 
 
@@ -233,7 +205,7 @@ def extract_subj(result):
                 if child.dep_ == "auxpass":
                     for achild in child.children:
                         if achild.dep_ == "agent":
-                            out.append((str(child) + " by",'n'))
+                            out.append(str(child) + " by")
                 
                 if child.dep == 425 or child.dep == 412:
                     # 425 is nsubj, 412 is dobj
@@ -241,11 +213,11 @@ def extract_subj(result):
                         for nchild in child.children:
                             if nchild.dep_ == "prep":
                                 for pchild in nchild.children:
-                                    out.append((str(child.lemma_) + " " +str(nchild) + " " + str(pchild.lemma_),'n'))
+                                    out.append(str(child.lemma_) + " " +str(nchild) + " " + str(pchild.lemma_))
                         
                             elif nchild.dep_ == "compound":
-                                out.append((str(nchild) + " " + str(child),'n'))
-                        out.append((str(child.lemma_),'n'))
+                                out.append(str(nchild) + " " + str(child))
+                        out.append(str(child.lemma_))
     
     return out
 
@@ -256,7 +228,7 @@ def free_nouns(result, relList):
     for w in result:
         if (w.tag == 474 or w.tag == 477 or w.tag_ == "attr"):
             # 474a nd 477 are nouns and plural nouns
-            out.append((str(w.lemma_),'n'))
+            out.append(str(w.lemma_))
     out.reverse()
     return out
 
@@ -266,7 +238,7 @@ def free_verbs(result):
     out=[]
     for w in result:
         if w.pos_ == "VERB" and w.lemma_!="be":
-            out.append((str(w.lemma_),'v'))
+            out.append(str(w))
     out.reverse()
     return out
 
