@@ -1,2 +1,3 @@
-1	zucchini	eggplant	marjoram	basil	bell pepper	tomato	onion	garlic	
-2	Gordon Ramsay	
+1	[Pair(entity='ratatouille', relation='ingredient'), Pair(entity='ingredient', relation='ratatouille')]
+zucchini	eggplant	marjoram	basil	bell pepper	tomato	onion	garlic	
+1	
