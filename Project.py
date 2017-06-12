@@ -6,7 +6,6 @@ import collections
 import csv
 import time
 
-
 def main(argv):
     nlp = spacy.load('en_default') #put this first so we don't load it for every question
     questionCount = 0
@@ -24,17 +23,11 @@ def main(argv):
             print(str(questionCount) + "\t", end="")
 
         answer = create_and_fire_query(line, nlp) #returns 1 and prints answer if one was found
-        if answer == 0:
-            print("No answer found")
-        else:
-            print("\n", end="")
+        #if answer == 0:
+        #    print("No answer found")
+        #else:
+        print("\n", end="")
         #end of file ends program because stdin is used
-
-# def print_example_queries():
-#     # don't think we need this ?
-#     #print("enter question:")
-#     print("\n")
-#     return
 
 def read_csv():
     wordfreqs = {}
@@ -48,12 +41,23 @@ def read_csv():
 
 
 def test_for_yes_no(line) :
-    # TODO: write this function
     # returns 1 if it's a yes/no question, or 0 otherwise
     # I think this is easy, test whether the lemma of the first word is "be" or "do"
     if line[0].lemma_ == 'do' or line[0].lemma_ == 'be':
         return 1
     return 0
+
+try:
+    from dateutil.parser import parse
+except:
+    print("Dateutil not installed")
+
+def is_date(e):
+    try:
+        parse(e)
+        return True
+    except:
+        return False
 
 def simple_yes_no(line) :
     
@@ -61,6 +65,7 @@ def simple_yes_no(line) :
     entList = []
     entList.extend(extract_named_entities(line))
     entList.extend(extract_adjectives(line))
+    entList.extend(extract_subj(line))
     entList.extend(free_nouns(line))
     entList.extend(free_verbs(line))
 
@@ -72,8 +77,6 @@ def simple_yes_no(line) :
 
             if ent1 != ent2 and (Pair(str(ent1[0]),str(ent2[0])) not in pairs):
                 pairs.append(Pair(str(ent1[0]),str(ent2[0])))
-
-
 
     # construct and fire queries
     wdapi = 'https://wikidata.org/w/api.php';
@@ -94,9 +97,6 @@ def simple_yes_no(line) :
                     query = ('SELECT ?answer WHERE {'
                               'OPTIONAL { wd:'+ent1_id+' ?answer wd:'+ent2_id+' . }'
                               'OPTIONAL { wd:'+ent2_id+' ?answer wd:'+ent1_id+'.}}')
-                    
-
-
                     # this code is changed so that if our connection is refused for too many requests we try again after a shord wait
                     data = ''
                     while data == '':
@@ -109,111 +109,45 @@ def simple_yes_no(line) :
                             continue
                     # if query returned a relation between entities, answer yes
                     if data['results']['bindings'] != [{}]:
-                        print("yes", end='')
+                        print("Yes", end='')
                         return
+                else: #entity2 did not give results, check if it was a year
+                    try: #huge try catch for when dateutil is not installed
+                        if pair.ent2.isdigit() or is_date(pair.ent2):
+                            time_properties = ["P569", "P570", "P571", "P580", "P582"] #most common date types
+                            for prop in time_properties:
+                                answer = ''
+                                query = 'SELECT ?answerLabel WHERE { wd:'+ent1_id+' wdt:'+prop+' ?answer. SERVICE wikibase:label {bd:serviceParam wikibase:language "en" .}}'
+                                # this code is changed so that if our connection is refused for too many requests we try again after a short wait
+                                data = ''
+                                while data == '':
+                                    try:
+                                        data = requests.get(sparqlurl, params = {'query':query, 'format':'json'}).json()
+                                    except:
+                                        time.sleep(5)
+                                        continue
+                                
+                                for item in data['results']['bindings']:
+                                    for key in item:
+                                        if item[key]['type'] == 'literal':
+                                            if is_date(item[key]['value']):
+                                                date = parse(item[key]['value'])
+                                                if pair.ent2.isdigit(): #its a year
+                                                    if pair.ent2 == str(date.year):
+                                                        print("Yes", end='')
+                                                        return
+                                                else:
+                                                    testDate = parse(pair.ent2)
+                                                    if testDate.year == date.year and testDate.month == date.month and testDate.day == date.day:
+                                                        print("Yes", end='')
+                                                        return
+                    except:
+                        #not a date
+                        continue
     # if every query failed, answer no
-    print("no", end='')
-
-
-# no longer used
-def analysis_yes_no(line) :
-    # TODO: write this function
-    # not sure the best way to do this, but can probably use some of the
-    # helper functions for the normal analysis
-    wdapi = 'https://wikidata.org/w/api.php';
-    wdparams = {'action':'wbsearchentities','language':'en', 'format':'json'}
-    phrase = ""
-    entity1 = ""
-    entity2 = ""
-    rel = ""
-    i = 0
-    while i < len(line):
-        # print(str(line[i]))
-        # print(line[i].tag_)
-        if line[i].tag_ == "NN" or line[i].tag_ == "NNS" or line[i].tag_ == "NNP":
-            while line[i].dep_ == "compound":
-                phrase += str(line[i]) + " "
-                i+=1 #fill in the first noun phrase
-            if line[i].tag_ == "NNS":
-                phrase += str(line[i].lemma_)
-            else:
-                phrase += str(line[i])
-            if entity1 == "":
-                entity1 += phrase
-                phrase = ""
-            elif entity2 == "":
-                entity2 += phrase
-                phrase = ""
-            elif entity2 != "":
-                entity2 += " " + phrase
-                phrase = ""
-        elif (line[i].tag_ == "JJ" or line[i].tag_ == "CD") and entity2 == "": #adds numbers as entity2 if all else fails
-            entity2 += str(line[i])
-        elif line[i].tag_ == "VB":
-            rel += str(line[i].lemma_)
-        i += 1
-    return fire_sparql_yes_no(entity1, rel, entity2)
-
-#return fire_sparql_yes_no(ob1, rel, ob2)
-
-#no longer used
-def answer_yes_no(ob1, rel, ob2):
-    url = 'https://query.wikidata.org/sparql'
-    query = 'ASK {wd:'+ob1+' wdt:'+rel+' wd:'+ob2+'.}'
-    result = requests.get(url, params={'query': query, 'format': 'json'}).json()
-    if result['boolean'] == True:
-        answer = 'Yes'
-    elif result['boolean'] == False:
-        answer = 'No'
-    print(answer, end="")
-
-#no longer used
-def fire_sparql_yes_no(ob1, rel, ob2) :
-    # Searches for the relationship between two objects
-    # Returns booleans
-    entity1_id = ""
-    entity2_id = ""
-    url = 'https://query.wikidata.org/sparql'
-    wdapi = 'https://wikidata.org/w/api.php';
-    wdparams = {'action':'wbsearchentities','language':'en', 'format':'json'}
-    
-    wdparams['search'] = ob1
-    wdparams['type'] = 'item'
-    json = requests.get(wdapi, wdparams).json()
-    for result in json['search']:
-        entity1_id = result['id']
-        wdparams['search'] = ob2
-        wdparams['type'] = 'item'
-        json = requests.get(wdapi, wdparams).json()
-        for result in json['search']:
-            entity2_id = result['id']
-            if rel == "":
-                print("rel empty")
-                query = 'SELECT ?relation ?relationLabel WHERE {wd:'+entity1_id+' ?relation wd:'+entity2_id+' . SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }}'
-                data = requests.get(url, params={'query': query, 'format': 'json'}).json()
-                #for dates/numbers: fails here, no items found
-                for item in data['results']['bindings']:
-                    for key in item:
-                        if item[key]['type'] == 'literal':
-                            wdparams['search'] = ('{}'.format(item[key]['value']))
-                            wdparams['type'] = 'property'
-                            json = requests.get(wdapi,wdparams).json()
-                            for searchResult in json['search']:
-                                rel = searchResult['id']
-                                print(entity1_id, rel, entity2_id)
-                                return answer_yes_no(entity1_id, rel, entity2_id)
-            else:
-                wdparams['search'] = rel
-                wdparams['type'] = 'property'
-                json = requests.get(wdapi,wdparams).json()
-                for result in json['search']:
-                    rel = result['id']
-                    return answer_yes_no(entity1_id, rel, entity2_id)
-    print("No", end="")
-
+    print("No", end='')
 
 def test_for_count(line) :
-    # TODO: write this function
     # returns 1 if it is a counting question, or 0 if it isnt
     # maybe just check for keywords, like "count" or "how many"?
     #print(line[0].lemma_ + " " + line[1].lemma_)
@@ -235,6 +169,8 @@ def analysis(line):
     entList.extend(extract_named_entities(line))
 
     relList.extend(extract_subj(line))
+    entList.extend(extract_subj(line))
+
     entList.extend(free_nouns(line))
     relList.extend(free_verbs(line))
     relList.extend(free_nouns(line))
@@ -334,6 +270,9 @@ def free_nouns(result):
         if (w.tag == 474 or w.tag == 477 or w.tag_ == "attr"):
             # 474a nd 477 are nouns and plural nouns
             out.append((str(w.lemma_),'n'))
+            for child in w.children:
+                if child.dep_ == "compound":
+                    out.append((str(child) + " " + str(w),'n'))
     out.reverse()
     return out
 
@@ -365,11 +304,14 @@ def fire_sparql_what_is(ent):
     json = requests.get(url, params).json()
     for result in json['search']:
         entityID = result['id']
-        break;
-    query = 'SELECT ?label WHERE { wd:' + entityID + ' schema:description ?label.  FILTER(LANG(?label) = "en")}'
-    data = requests.get(sparqlurl,params={'query': query, 'format': 'json'}).json()
-    for item in data['results']['bindings']:
-        print('{}'.format(item['label']['value']) + "\t", end="")
+        
+        query = 'SELECT ?label WHERE { wd:' + entityID + ' schema:description ?label.  FILTER(LANG(?label) = "en")}'
+        data = requests.get(sparqlurl,params={'query': query, 'format': 'json'}).json()
+        for item in data['results']['bindings']:
+            if "disambiguation" not in item['label']['value']:
+                print('{}'.format(item['label']['value']) + "\t", end="")
+                return 1
+    return 0
 
 def create_and_fire_query(line, nlp):
     
@@ -380,9 +322,8 @@ def create_and_fire_query(line, nlp):
     
     # decide which kind of question it is
     isCountQuestion = 0
-    if test_for_what_is(result):
-        analysis_what_is(line)
-    elif test_for_yes_no(result):
+    
+    if test_for_yes_no(result):
         #print("Yes question")
         simple_yes_no(result)
         # if it's a yes/no question we go have a different query
@@ -396,20 +337,22 @@ def create_and_fire_query(line, nlp):
             wdparams['search'] = pair.entity
             wdparams['type'] = 'item'
             json = requests.get(wdapi,wdparams).json()
-            for result in json['search']:
-                entity_id = result['id']
+            for sresult in json['search']:
+                entity_id = sresult['id']
                 wdparams['search'] = pair.relation
                 wdparams['type'] = 'property'
                 json = requests.get(wdapi,wdparams).json()
                 
-                for result in json['search']:
-                    relation_id = result['id']
+                for sresult in json['search']:
+                    relation_id = sresult['id']
                     if fire_sparql(entity_id, relation_id, isCountQuestion) == 1:
                         # if it returns 1 then a solution was found so we stop
                         return 1
         if isCountQuestion == 1:
-            print("3 (guess)", end='')
+            print("3", end='')
             return 1
+        if test_for_what_is(result):
+            return analysis_what_is(line)
         return 0
 
 def fire_sparql(ent, rel, isCountQuestion):
