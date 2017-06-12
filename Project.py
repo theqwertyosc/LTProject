@@ -69,6 +69,8 @@ def analysis_yes_no(line) :
     rel = ""
     i = 0
     while i < len(line):
+        # print(str(line[i]))
+        # print(line[i].tag_)
         if line[i].tag_ == "NN" or line[i].tag_ == "NNS" or line[i].tag_ == "NNP":
             while line[i].dep_ == "compound":
                 phrase += str(line[i]) + " "
@@ -86,7 +88,7 @@ def analysis_yes_no(line) :
             elif entity2 != "":
                 entity2 += " " + phrase
                 phrase = ""
-        elif line[i].tag_ == "JJ" and entity2 == "":
+        elif (line[i].tag_ == "JJ" or line[i].tag_ == "CD") and entity2 == "": #adds numbers as entity2 if all else fails
             entity2 += str(line[i])
         elif line[i].tag_ == "VB":
             rel += str(line[i].lemma_)
@@ -96,6 +98,7 @@ def analysis_yes_no(line) :
 #return fire_sparql_yes_no(ob1, rel, ob2)
 
 def answer_yes_no(ob1, rel, ob2):
+    print(obj2)
     url = 'https://query.wikidata.org/sparql'
     query = 'ASK {wd:'+ob1+' wdt:'+rel+' wd:'+ob2+'.}'
     result = requests.get(url, params={'query': query, 'format': 'json'}).json()
@@ -126,8 +129,10 @@ def fire_sparql_yes_no(ob1, rel, ob2) :
         for result in json['search']:
             entity2_id = result['id']
             if rel == "":
+                print("rel empty")
                 query = 'SELECT ?relation ?relationLabel WHERE {wd:'+entity1_id+' ?relation wd:'+entity2_id+' . SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }}'
                 data = requests.get(url, params={'query': query, 'format': 'json'}).json()
+                #for dates/numbers: fails here, no items found
                 for item in data['results']['bindings']:
                     for key in item:
                         if item[key]['type'] == 'literal':
@@ -136,6 +141,7 @@ def fire_sparql_yes_no(ob1, rel, ob2) :
                             json = requests.get(wdapi,wdparams).json()
                             for searchResult in json['search']:
                                 rel = searchResult['id']
+                                print(entity1_id, rel, entity2_id)
                                 return answer_yes_no(entity1_id, rel, entity2_id)
             else:
                 wdparams['search'] = rel
