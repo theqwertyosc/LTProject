@@ -9,8 +9,6 @@ import time
 
 def main(argv):
     nlp = spacy.load('en_default') #put this first so we don't load it for every question
-    #print_example_queries()
-    
     questionCount = 0
     for line in sys.stdin:
         line = line.rstrip() # removes newline
@@ -19,7 +17,8 @@ def main(argv):
         if len(splitLine)>=2:
             line = splitLine[1]
             print(splitLine[0] + "\t", end="")
-        else: #question withoutnumber
+        else:
+            #question withoutnumber
             line = splitLine[0]
             questionCount += 1
             print(str(questionCount) + "\t", end="")
@@ -157,7 +156,7 @@ def analysis_yes_no(line) :
 
 #no longer used
 def answer_yes_no(ob1, rel, ob2):
-    print(obj2)
+    print(ob2)
     url = 'https://query.wikidata.org/sparql'
     query = 'ASK {wd:'+ob1+' wdt:'+rel+' wd:'+ob2+'.}'
     result = requests.get(url, params={'query': query, 'format': 'json'}).json()
@@ -347,6 +346,30 @@ def free_verbs(result):
     out.reverse()
     return out
 
+def test_for_what_is(line):
+    if (line[0].lemma_ == 'what' or line[0].lemma_ == 'who') and line[1].lemma_== 'be' and (line[3].lemma_ == "?" or line[4].lemma_== "?"):
+        return 1
+    return 0
+
+def analysis_what_is(line):
+    m = re.search('(?:What|Who) (?:is|are) (.*)\?', line)
+    ent = m.group(1)
+    return fire_sparql_what_is(ent)
+
+def fire_sparql_what_is(ent):
+    sparqlurl = 'https://query.wikidata.org/sparql'
+    url = 'https://www.wikidata.org/w/api.php'
+    params = {'action': 'wbsearchentities', 'language': 'en', 'format': 'json'}
+    params['search'] = ent
+    json = requests.get(url, params).json()
+    for result in json['search']:
+        entityID = result['id']
+        break;
+    query = 'SELECT ?label WHERE { wd:' + entityID + ' schema:description ?label.  FILTER(LANG(?label) = "en")}'
+    data = requests.get(sparqlurl,params={'query': query, 'format': 'json'}).json()
+    for item in data['results']['bindings']:
+        print('{}'.format(item['label']['value']) + "\t", end="")
+
 def create_and_fire_query(line, nlp):
     
     wdapi = 'https://wikidata.org/w/api.php';
@@ -356,7 +379,9 @@ def create_and_fire_query(line, nlp):
     
     # decide which kind of question it is
     isCountQuestion = 0
-    if test_for_yes_no(result):
+    if test_for_what_is(result):
+        analysis_what_is(line)
+    elif test_for_yes_no(result):
         #print("Yes question")
         simple_yes_no(result)
         # if it's a yes/no question we go have a different query
