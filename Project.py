@@ -139,11 +139,11 @@ def simple_yes_no(line) :
                                         if item[key]['type'] == 'literal':
                                             if is_date(item[key]['value']):
                                                 date = parse(item[key]['value'])
-                                                if is_digit(pair.ent2): #its a year
+                                                if pair.ent2.isdigit(): #its a year
                                                     if pair.ent2 == str(date.year):
                                                         print("Yes", end='')
                                                         return
-                                                else: #assumes the question is a year and checks if they are the same
+                                                else:
                                                     testDate = parse(pair.ent2)
                                                     if testDate.year == date.year and testDate.month == date.month and testDate.day == date.day:
                                                         print("Yes", end='')
