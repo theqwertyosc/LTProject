@@ -63,16 +63,18 @@ def simple_yes_no(line) :
     entList.extend(extract_adjectives(line))
     entList.extend(free_nouns(line))
     entList.extend(free_verbs(line))
-    
+
     # make pairs
     pairs = []
     Pair =collections.namedtuple('Pair',['ent1','ent2'])
     for ent1 in entList:
         for ent2 in entList:
-            
+
             if ent1 != ent2 and (Pair(str(ent1[0]),str(ent2[0])) not in pairs):
                 pairs.append(Pair(str(ent1[0]),str(ent2[0])))
-    
+
+
+
     # construct and fire queries
     wdapi = 'https://wikidata.org/w/api.php';
     wdparams = {'action':'wbsearchentities','language':'en', 'format':'json'}
@@ -93,7 +95,7 @@ def simple_yes_no(line) :
                               'OPTIONAL { wd:'+ent1_id+' ?answer wd:'+ent2_id+' . }'
                               'OPTIONAL { wd:'+ent2_id+' ?answer wd:'+ent1_id+'.}}')
                     
-                    
+
 
                     # this code is changed so that if our connection is refused for too many requests we try again after a shord wait
                     data = ''
@@ -156,7 +158,6 @@ def analysis_yes_no(line) :
 
 #no longer used
 def answer_yes_no(ob1, rel, ob2):
-    print(ob2)
     url = 'https://query.wikidata.org/sparql'
     query = 'ASK {wd:'+ob1+' wdt:'+rel+' wd:'+ob2+'.}'
     result = requests.get(url, params={'query': query, 'format': 'json'}).json()
@@ -257,7 +258,7 @@ def analysis(line):
 
     #this is such a last resort that we add it after sorting, because "List the x of y" gives the wrong answer
     ent_sorted.extend(free_verbs(line))
-    
+
     Pair =collections.namedtuple('Pair',['entity','relation'])
     for ent in ent_sorted:
         for rel in rel_sorted:
