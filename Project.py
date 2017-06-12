@@ -357,7 +357,7 @@ def create_and_fire_query(line, nlp):
                         # if it returns 1 then a solution was found so we stop
                         return 1
         if isCountQuestion == 1:
-            print("3 (guess)", end='')
+            print("3", end='')
             return 1
         if test_for_what_is(result):
             return analysis_what_is(line)
