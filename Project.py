@@ -113,6 +113,8 @@ def simple_yes_no(line) :
     # if every query failed, answer no
     print("no", end='')
 
+
+# no longer used
 def analysis_yes_no(line) :
     # TODO: write this function
     # not sure the best way to do this, but can probably use some of the
@@ -153,6 +155,7 @@ def analysis_yes_no(line) :
 
 #return fire_sparql_yes_no(ob1, rel, ob2)
 
+#no longer used
 def answer_yes_no(ob1, rel, ob2):
     print(obj2)
     url = 'https://query.wikidata.org/sparql'
@@ -164,7 +167,7 @@ def answer_yes_no(ob1, rel, ob2):
         answer = 'No'
     print(answer, end="")
 
-
+#no longer used
 def fire_sparql_yes_no(ob1, rel, ob2) :
     # Searches for the relationship between two objects
     # Returns booleans
@@ -378,6 +381,8 @@ def create_and_fire_query(line, nlp):
                     if fire_sparql(entity_id, relation_id, isCountQuestion) == 1:
                         # if it returns 1 then a solution was found so we stop
                         return 1
+        if isCountQuestion == 1:
+            print("3 (guess)", end='')
         return 0
 
 def fire_sparql(ent, rel, isCountQuestion):
