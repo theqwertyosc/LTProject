@@ -56,6 +56,62 @@ def test_for_yes_no(line) :
         return 1
     return 0
 
+def simple_yes_no(line) :
+    
+    # extract words from the line in order of how likely they are to be important
+    entList = []
+    entList.extend(extract_named_entities(line))
+    entList.extend(extract_adjectives(line))
+    entList.extend(free_nouns(line))
+    entList.extend(free_verbs(line))
+    
+    # make pairs
+    pairs = []
+    Pair =collections.namedtuple('Pair',['ent1','ent2'])
+    for ent1 in entList:
+        for ent2 in entList:
+            
+            if ent1 != ent2 and (Pair(str(ent1[0]),str(ent2[0])) not in pairs):
+                pairs.append(Pair(str(ent1[0]),str(ent2[0])))
+    
+    # construct and fire queries
+    wdapi = 'https://wikidata.org/w/api.php';
+    wdparams = {'action':'wbsearchentities','language':'en', 'format':'json'}
+    sparqlurl = 'https://query.wikidata.org/sparql'
+    for pair in pairs:
+            wdparams['search'] = pair.ent1
+            wdparams['type'] = 'item'
+            json = requests.get(wdapi,wdparams).json()
+            for result in json['search']:
+                ent1_id = result['id']
+                wdparams['search'] = pair.ent2
+                wdparams['type'] = 'item'
+                json = requests.get(wdapi,wdparams).json()                
+                for result in json['search']:
+                    ent2_id = result['id']
+                    # queries whether the two objects are related to eachother in any way
+                    query = ('SELECT ?answer WHERE {'
+                              'OPTIONAL { wd:'+ent1_id+' ?answer wd:'+ent2_id+' . }'
+                              'OPTIONAL { wd:'+ent2_id+' ?answer wd:'+ent1_id+'.}}')
+                    
+                    
+
+                    # this code is changed so that if our connection is refused for too many requests we try again after a shord wait
+                    data = ''
+                    while data == '':
+                        try:
+                            data = requests.get(sparqlurl, params = {'query':query, 'format':'json'}).json()
+                        except:
+                            #print("Connection refused by the server..")
+                            time.sleep(5)
+                            #print("Was a nice sleep, now let me continue...")
+                            continue
+                    # if query returned a relation between entities, answer yes
+                    if data['results']['bindings'] != [{}]:
+                        print("yes", end='')
+                        return
+    # if every query failed, answer no
+    print("no", end='')
 
 def analysis_yes_no(line) :
     # TODO: write this function
@@ -176,9 +232,9 @@ def analysis(line):
     entList.extend(extract_named_entities(line))
 
     relList.extend(extract_subj(line))
-    entList.extend(free_nouns(line, relList))
+    entList.extend(free_nouns(line))
     relList.extend(free_verbs(line))
-    relList.extend(free_nouns(line, relList))
+    relList.extend(free_nouns(line))
     
     # sorting some of the words by frequency to try the rarest ones first
     entDict = {}
@@ -259,8 +315,16 @@ def extract_subj(result):
     
     return out
 
+def extract_adjectives(result) :
+    out = []
+    for w in result:
+        if (w.tag_ == 'JJ'):
+            # 474a nd 477 are nouns and plural nouns
+            out.append((str(w.lemma_),'jj'))
+    out.reverse()
+    return out
 
-def free_nouns(result, relList):
+def free_nouns(result):
     # returns free nouns for a last resort test
     out=[]
     for w in result:
@@ -291,7 +355,7 @@ def create_and_fire_query(line, nlp):
     isCountQuestion = 0
     if test_for_yes_no(result):
         #print("Yes question")
-        analysis_yes_no(result)
+        simple_yes_no(result)
         # if it's a yes/no question we go have a different query
     else :
         if test_for_count(result):   
