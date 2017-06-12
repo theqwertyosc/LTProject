@@ -280,6 +280,9 @@ def free_nouns(result):
         if (w.tag == 474 or w.tag == 477 or w.tag_ == "attr"):
             # 474a nd 477 are nouns and plural nouns
             out.append((str(w.lemma_),'n'))
+            for child in w.children:
+                if child.dep_ == "compound":
+                    out.append((str(child) + " " + str(w),'n'))
     out.reverse()
     return out
 
