@@ -192,13 +192,12 @@ def analysis(line):
     rel_sorted = sorted(relList, key=relDict.get, reverse=True)
 
     #this is such a last resort that we add it after sorting, because "List the x of y" gives the wrong answer
-    entList.extend(free_verbs(line))
+    ent_sorted.extend(free_verbs(line))
     
     Pair =collections.namedtuple('Pair',['entity','relation'])
     for ent in ent_sorted:
         for rel in rel_sorted:
             if ent != rel and (Pair(str(ent[0]),str(rel[0])) not in pairs):
-                
                 pairs.append(Pair(str(ent[0]),str(rel[0])))
     return pairs
 
