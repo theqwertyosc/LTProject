@@ -383,6 +383,7 @@ def create_and_fire_query(line, nlp):
                         return 1
         if isCountQuestion == 1:
             print("3 (guess)", end='')
+            return 1
         return 0
 
 def fire_sparql(ent, rel, isCountQuestion):
