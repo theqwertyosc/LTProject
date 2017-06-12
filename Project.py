@@ -23,10 +23,10 @@ def main(argv):
             print(str(questionCount) + "\t", end="")
 
         answer = create_and_fire_query(line, nlp) #returns 1 and prints answer if one was found
-        if answer == 0:
-            print("No answer found")
-        else:
-            print("\n", end="")
+        #if answer == 0:
+        #    print("No answer found")
+        #else:
+        print("\n", end="")
         #end of file ends program because stdin is used
 
 # def print_example_queries():
@@ -47,7 +47,6 @@ def read_csv():
 
 
 def test_for_yes_no(line) :
-    # TODO: write this function
     # returns 1 if it's a yes/no question, or 0 otherwise
     # I think this is easy, test whether the lemma of the first word is "be" or "do"
     if line[0].lemma_ == 'do' or line[0].lemma_ == 'be':
@@ -157,7 +156,6 @@ def simple_yes_no(line) :
     print("No", end='')
 
 def test_for_count(line) :
-    # TODO: write this function
     # returns 1 if it is a counting question, or 0 if it isnt
     # maybe just check for keywords, like "count" or "how many"?
     #print(line[0].lemma_ + " " + line[1].lemma_)
@@ -314,11 +312,14 @@ def fire_sparql_what_is(ent):
     json = requests.get(url, params).json()
     for result in json['search']:
         entityID = result['id']
-        break;
-    query = 'SELECT ?label WHERE { wd:' + entityID + ' schema:description ?label.  FILTER(LANG(?label) = "en")}'
-    data = requests.get(sparqlurl,params={'query': query, 'format': 'json'}).json()
-    for item in data['results']['bindings']:
-        print('{}'.format(item['label']['value']) + "\t", end="")
+        
+        query = 'SELECT ?label WHERE { wd:' + entityID + ' schema:description ?label.  FILTER(LANG(?label) = "en")}'
+        data = requests.get(sparqlurl,params={'query': query, 'format': 'json'}).json()
+        for item in data['results']['bindings']:
+            if "disambiguation" not in item['label']['value']:
+                print('{}'.format(item['label']['value']) + "\t", end="")
+                return 1
+    return 0
 
 def create_and_fire_query(line, nlp):
     
@@ -329,9 +330,8 @@ def create_and_fire_query(line, nlp):
     
     # decide which kind of question it is
     isCountQuestion = 0
-    if test_for_what_is(result):
-        analysis_what_is(line)
-    elif test_for_yes_no(result):
+    
+    if test_for_yes_no(result):
         #print("Yes question")
         simple_yes_no(result)
         # if it's a yes/no question we go have a different query
@@ -345,20 +345,22 @@ def create_and_fire_query(line, nlp):
             wdparams['search'] = pair.entity
             wdparams['type'] = 'item'
             json = requests.get(wdapi,wdparams).json()
-            for result in json['search']:
-                entity_id = result['id']
+            for sresult in json['search']:
+                entity_id = sresult['id']
                 wdparams['search'] = pair.relation
                 wdparams['type'] = 'property'
                 json = requests.get(wdapi,wdparams).json()
                 
-                for result in json['search']:
-                    relation_id = result['id']
+                for sresult in json['search']:
+                    relation_id = sresult['id']
                     if fire_sparql(entity_id, relation_id, isCountQuestion) == 1:
                         # if it returns 1 then a solution was found so we stop
                         return 1
         if isCountQuestion == 1:
             print("3 (guess)", end='')
             return 1
+        if test_for_what_is(result):
+            return analysis_what_is(line)
         return 0
 
 def fire_sparql(ent, rel, isCountQuestion):
