@@ -23,9 +23,6 @@ def main(argv):
             print(str(questionCount) + "\t", end="")
 
         answer = create_and_fire_query(line, nlp) #returns 1 and prints answer if one was found
-        #if answer == 0:
-        #    print("No answer found")
-        #else:
         print("\n", end="")
         #end of file ends program because stdin is used
 
